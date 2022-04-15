@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org/">
+<head>
+    <meta charset="UTF-8">
+    <title>EmployeeList</title>
+    <link rel="stylesheet" th:href="@{/static/elementUI/index.css}"/>
+</head>
+<!--在引入elementui.js之前需要先引入vue.js-->
+<script type="text/javascript" th:src="@{/static/script/vue.js}"></script>
+<script th:src="@{/static/elementUI/index.js}"></script>
+<script type="text/javascript" th:src="@{/static/script/axios.min.js}"></script>
+<body>
+<div id="app">
+    <el-header align="center">
+        <h1>SSM_CRUD</h1>
+    </el-header>
+    <el-main>
+        <template>
+            <el-table
+                    :data="tableData.filter(data => !search || data.name.toLowerCase().includes(search.toLowerCase()))"
+                    @selection-change="handleSelectionChange"
+                    style="width: 100%">
+                <el-table-column
+                        type="selection"
+                        width="55">
+                </el-table-column>
+                <el-table-column
+                        label="Id"
+                        prop="empId">
+                </el-table-column>
+                <el-table-column
+                        label="Name"
+                        prop="empName">
+                </el-table-column>
+                <el-table-column
+                        label="email"
+                        prop="email">
+                </el-table-column>
+                <el-table-column
+                        label="gender"
+                        prop="gender">
+                </el-table-column>
+                <el-table-column
+                        label="department"
+                        prop="department.deptName">
+                </el-table-column>
+                <el-table-column
+                        align="right">
+                    <template slot="header" slot-scope="scope">
+                        <el-button
+                                size="mini"
+                                type="button"
+                                @click="handleOpenDialog">新增
+                        </el-button>
+                        <el-button
+                                size="mini"
+                                type="danger"
+                                @click="handleBatchDelete">删除
+                        </el-button>
+                        <el-input
+                                v-model="search"
+                                size="mini"
+                                placeholder="输入关键字搜索"></el-input>
+                    </template>
+                    <template slot-scope="scope">
+                        <el-button
+                                size="mini"
+                                @click="handleEdit(scope.$index, scope.row)">Edit
+                        </el-button>
+                        <el-button
+                                size="mini"
+                                type="danger"
+                                @click="handleDelete(scope.$index, scope.row)">Delete
+                        </el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-dialog title="员工添加" :visible.sync="dialogFormVisible">
+                <el-form :model="form" status-icon :rules="rules" ref="form">
+                    <el-form-item label="empName" :label-width="formLabelWidth" prop="empName">
+                        <el-input v-model="form.empName" autocomplete="off"></el-input>
+                    </el-form-item>
+                    <el-form-item label="email" :label-width="formLabelWidth" prop="email">
+                        <el-input v-model="form.email" autocomplete="off"></el-input>
+                    </el-form-item>
+                    <el-form-item label="gender" :label-width="formLabelWidth" prop="gender">
+                        <el-radio v-model="form.gender" label="M">男</el-radio>
+                        <el-radio v-model="form.gender" label="F">女</el-radio>
+                    </el-form-item>
+                    <el-form-item label="deptName" :label-width="formLabelWidth" prop="deptId">
+                        <el-select v-model="form.deptId" placeholder="请选择部门">
+                            <el-option
+                                    v-for="item in deptItems"
+                                    :key="item.deptId"
+                                    :label="item.deptName"
+                                    :value="item.deptId">
+
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                </el-form>
+                <div slot="footer" class="dialog-footer">
+                    <el-button @click="handleCloseDialog">取 消</el-button>
+                    <el-button type="primary" @click="handleSaveEmp('form')">添 加</el-button>
+                </div>
+            </el-dialog>
+            <div class="grid-content bg-purple">
+                <!--分页文字信息  -->
+                <div class="col-md-6" margin-top="20px">当前 {{currentPage}}页,总{{totalPages }}
+                    页,总 {{totalItems}} 条记录
+                </div>
+            </div>
+            <el-pagination
+                    background
+                    @current-change="handleCurrentChange"
+                    :current-page="currentPage"
+                    :page-size="pageSize"
+                    :total.sync="totalItems"
+                    align="right">
+            </el-pagination>
+
+            <el-dialog title="员工修改" :visible.sync="editDialogFormVisible">
+                <el-form :model="editForm" status-icon :rules="rules" ref="editForm">
+                    <el-form-item label="empName" :label-width="formLabelWidth" prop="empName">
+                        <el-input v-model="editForm.empName" autocomplete="off"></el-input>
+                    </el-form-item>
+                    <el-form-item label="email" :label-width="formLabelWidth" prop="email">
+                        <el-input v-model="editForm.email" autocomplete="off"></el-input>
+                    </el-form-item>
+                    <el-form-item label="gender" :label-width="formLabelWidth" prop="gender">
+                        <el-radio v-model="editForm.gender" label="M">男</el-radio>
+                        <el-radio v-model="editForm.gender" label="F">女</el-radio>
+                    </el-form-item>
+                    <el-form-item label="deptName" :label-width="formLabelWidth" prop="deptId">
+                        <el-select v-model="editForm.deptId" placeholder="请选择部门">
+                            <el-option
+                                    v-for="item in deptItems"
+                                    :key="item.deptId"
+                                    :label="item.deptName"
+                                    :value="item.deptId">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                </el-form>
+                <div slot="footer" class="dialog-footer">
+                    <el-button @click="handleCloseEditDialog">取 消</el-button>
+                    <el-button type="primary" @click="handleEditEmp('editForm')">修 改</el-button>
+                </div>
+            </el-dialog>
+
+
+        </template>
+
+    </el-main>
+</div>
+</body>
+
+
+<script>
+    function getEmps(pn) {
+        axios({
+            method: "GET",
+            url: "http://localhost:8080/ssm/emps",
+            params:{
+                pn:pn
+            }
+        }).then(function (value) {
+            console.log(value);
+            //处理员工信息
+            var emps = value.data.extend.pageInfo.list;
+            for (var i = 0; i < emps.length; i++) {
+                if (emps[i].gender == "M") {
+                    emps[i].gender = "男";
+                }
+                if (emps[i].gender == "F") {
+                    emps[i].gender = "女";
+                }
+            }
+            vm.tableData = emps;
+            vm.currentPage = value.data.extend.pageInfo.pageNum;
+            vm.totalPages = value.data.extend.pageInfo.pages;
+            console.log(vm.totalPages);
+            vm.totalItems = value.data.extend.pageInfo.total;
+            vm.pageSize=value.data.extend.pageInfo.pageSize;
+        }).catch(function (reason) {
+        });
+    }
+
+    function getDepts() {
+        axios({
+            method: "GET",
+            url: "http://localhost:8080/ssm/depts",
+        }).then(function (value){
+            vm.deptItems=value.data.extend.dept;
+            console.log(vm.deptItems);
+        }).catch(function (reason) {
+            console.log(reason);
+        });
+    }
+    var vm = new Vue({
+        el: "#app",
+        data() {
+            //员工Name校验
+            var validateName = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请输入姓名'));
+                } else {
+                    var regName=/(^[a-zA-Z0-9_-]{6,16}$)|(^[\u2E80-\u9FFF]{2,5})/;
+                    if (!regName.test(value)) {//不符合正则
+                        callback(new Error("用户名可以是2-5位中文或者6-16位英文和数字的组合"));
+                    } else {
+                        axios({//向服务器发送请求验证用户名是否可用
+                            url:"http://localhost:8080/ssm/checkUser",
+                            method:"GET",
+                            params:{
+                                empName: value
+                            },
+                        }).then(function (result) {
+                            if (result.data.code == 200) {//处理失败
+                                callback(new Error("用户名已存在"));
+                            } else {
+                                callback();
+                            }
+                        })
+                    }
+                }
+            };
+            //邮箱校验
+            var validateEmail = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请输入邮箱'));
+                } else {
+                    var regEmail=/^([a-z0-9_\.-]+)@([\da-z\.-]+)\.([a-z\.]{2,6})$/;
+                    if (!regEmail.test(value)) {
+                        callback(new Error("邮箱格式不正确"));
+                    } else {
+                        callback();
+                    }
+                }
+            };
+            return {
+                tableData: [],
+                multipleSelection: [],//表单的多选项
+                currentPage: null,
+                totalPages: null,
+                totalItems: null,
+                pageSize: null,
+                dialogFormVisible:false,  //新增表单的显示控制变量
+                editDialogFormVisible:false,  //新增表单的显示控制变量
+                form: {
+                    empName: null,
+                    email:null,
+                    gender:null,
+                    deptId:null,
+                },
+                editForm: {
+                    empId: null,
+                    empName: null,
+                    email:null,
+                    gender:null,
+                    deptId:null,
+                },
+                formLabelWidth: '120px',
+
+                deptItems:[],//部门下拉框
+
+                rules:{
+                    empName: [
+                        {required:true,validator:validateName,trigger:'blur'}
+                    ],
+                    email: [
+                        {required:true,validator:validateEmail,trigger:'blur'}
+                    ],
+                    deptId: [
+                        {required:true,trigger:'blur'}
+                    ],
+                    gender:[
+                        {required:true, trigger: 'blur'}
+                    ]
+                },//前端校验规则
+
+                search: ''
+
+            }
+        },
+        methods: {
+            handleEdit(index, row) {//打开员工信息edit框
+                console.log(index, row);
+                getDepts();
+                vm.editForm.empId=row.empId;
+                vm.editForm.empName=row.empName;
+                vm.editForm.email=row.email;
+                if ("女" == row.gender) {
+                    vm.editForm.gender="F";
+                }else if ("男" == row.gender) {
+                    vm.editForm.gender = "M";
+                }
+                vm.editForm.deptId = row.dId;
+                vm.editDialogFormVisible = true;
+            },
+            //删除员工
+            handleDelete(index, row) {
+                console.log(index, row);
+                this.$confirm('此操作将永久删除该员工, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    axios({
+                        url:"http://localhost:8080/ssm/emp",
+                        method: "DELETE",
+                        params:{
+                            empIdListString: row.empId+"",
+                        }
+                    }).then(function(result) {
+                        if (result.data.code == 100) {
+                            vm.$message({
+                                message: '删除成功',
+                                type: 'success'
+                            });
+                            getEmps(1);
+                    }
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '已取消删除'
+                    });
+                });
+
+            })
+            },
+            //批量删除
+            handleBatchDelete() {
+                var empIdList=[];
+                for (var i = 0; i < vm.multipleSelection.length; i++) {
+                    empIdList .push(vm.multipleSelection[i].empId);
+                }
+                console.log(empIdList);
+                this.$confirm('此操作将永久删除该员工, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    axios({
+                        url:"http://localhost:8080/ssm/emp",
+                        method: "DELETE",
+                        params:{
+                            empIdListString: empIdList+"",
+                        },
+                    }).then(function (result) {
+                        vm.$message({
+                            message: '删除成功',
+                            type: 'success'
+                        });
+                        getEmps(1);
+                    }).catch(() => {
+                        this.$message({
+                            type: 'info',
+                            message: '已取消删除'
+                        });
+                    });
+
+                })
+            },
+            //分页页码变更
+            handleCurrentChange(val) {
+                getEmps(val);
+            },
+            //新增员工
+            handleSaveEmp(formName) {
+                console.log(vm.form);
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {//前端校验通过
+                        console.log(vm.form);
+                        axios({
+                            url:"http://localhost:8080/ssm/emp",
+                            method:"POST",
+                            params:{
+                                empName: vm.form.empName,
+                                email:vm.form.email,
+                                gender:vm.form.gender,
+                                dId: vm.form.deptId,
+                            }
+                        }).then(function(result) {
+                            console.log(result);
+                            if (result.data.code == 100) {
+                                vm.$message({
+                                    message: '添加成功',
+                                    type: 'success'
+                                });
+                                vm.dialogFormVisible = false;
+                                getEmps(vm.totalItems);
+                            } else {
+                                vm.$message.error('添加失败');
+                            }
+                        })
+                    } else {//前端校验失败
+                        console.log('error submit!!');
+                        this.resetForm('form');
+                        this.showErrorMsg();
+                        return false;
+                    }
+                });
+            },
+
+            //修改员工
+            handleEditEmp(forName) {
+                this.$refs[forName].validate((valid) => {
+                    if (valid) {//前端校验通过
+                        console.log(vm.editForm);
+                        axios({
+                            url:"http://localhost:8080/ssm/emp",
+                            method:"PUT",
+                            params:{
+                                empId: vm.editForm.empId,
+                                empName: vm.editForm.empName,
+                                email:vm.editForm.email,
+                                gender:vm.editForm.gender,
+                                dId: vm.editForm.deptId,
+                            }
+                        }).then(function(result) {
+                            console.log(result);
+                            if (result.data.code == 100) {
+                                vm.$message({
+                                    message: '修改成功',
+                                    type: 'success'
+                                });
+                                vm.editDialogFormVisible = false;
+                                getEmps(1);
+                            } else {
+                                vm.$message.error('修改失败');
+                            }
+                        })
+                    } else {//前端校验失败
+                        console.log('error submit!!');
+                        this.resetForm('form');
+                        this.showErrorMsg();
+                        return false;
+                    }
+                });
+
+            },
+
+            //打开新增对话框
+            handleOpenDialog() {
+                this.form={
+                    empName: null,
+                    email:null,
+                    gender:null,
+                    deptId:null,
+                }
+                getDepts();
+                vm.dialogFormVisible = true;
+            },
+            resetForm(forName) {//重置表单
+                this.$refs[forName].resetFields();
+            },
+            handleCloseDialog() {//关闭新增对话框
+                this.resetForm('form');
+                vm.dialogFormVisible = false;
+            },
+            handleCloseEditDialog() {//关闭修改对话框
+                this.resetForm('editForm');
+                vm.editDialogFormVisible = false;
+            },
+            showErrorMsg() {
+                this.$message.error('不符合规则，请重新添加');
+            },
+            //多选
+            handleSelectionChange(val) {
+                this.multipleSelection = val;
+                console.log(this.multipleSelection)
+            }
+        },
+        created() {
+            getEmps(1);
+        },
+    })
+</script>
+</html>

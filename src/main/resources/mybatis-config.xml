@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+    <!--
+    MyBatis核心配置文件中，标签的顺序：
+    properties?,settings?,typeAliases?,typeHandlers?,
+    objectFactory?,objectWrapperFactory?,reflectorFactory?,
+    plugins?,environments?,databaseIdProvider?,mappers?
+    -->
+
+    <!--下划线自动转驼峰-->
+    <settings>
+        <setting name="mapUnderscoreToCamelCase" value="teue"/>
+    </settings>
+
+    <!--设置类型别名-->
+    <typeAliases>
+        <!--
+            typeAlias：设置某个类型的别名
+            属性：
+                type：设置需要设置别名的类型
+                alias：设置某个类型的别名，若不设置该属性，那么该类型拥有默认的别名，即类名且不区分大小写
+        -->
+        <!--<typeAlias type="com.atguigu.mybatis.pojo.User"></typeAlias>-->
+        <!--以包为单位，将包下所有的类型设置默认的类型别名，即类名且不区分大小写-->
+        <package name="com.yzy.ssm.bean"/>
+    </typeAliases>
+
+    <plugins>
+        <plugin interceptor="com.github.pagehelper.PageInterceptor">
+            <property name="reasonable" value="true"/>
+        </plugin>
+    </plugins>
+
+</configuration>
